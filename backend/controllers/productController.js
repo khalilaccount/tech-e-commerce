@@ -5,7 +5,7 @@ export const getProducts = async (req, res) => {
   try {
     // Select only needed columns, not *
     const { rows } = await pool.query(`
-      SELECT id, name, price, quantity, created_at 
+      SELECT id, name, price, quantity, image_url,  created_at 
       FROM items 
       WHERE quantity > 0 
       ORDER BY created_at DESC
@@ -55,5 +55,27 @@ export const getLatestProducts = async (req, res) => {
   } catch (err) {
     console.error("Get products error:", err);
     res.status(500).json({ error: "Failed to fetch products" });
+  }
+};
+
+export const getSingleProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { rows } = await pool.query(
+      `SELECT id, name, price, quantity, image_url, created_at
+       FROM items
+       WHERE id = $1`,
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.json(rows[0]); // ✅ send the single product
+  } catch (err) {
+    console.error("Get single product error:", err);
+    res.status(500).json({ error: "Failed to fetch product" });
   }
 };

@@ -3,6 +3,7 @@ import {
   getProducts,
   createProduct,
   getLatestProducts,
+  getSingleProduct,
 } from "../controllers/productController.js";
 import { verifyAdmin } from "../middleware/auth_middleware.js";
 
@@ -13,5 +14,7 @@ router.get("/", getProducts);
 router.post("/create", verifyAdmin, createProduct);
 
 router.get("/getlatest", getLatestProducts);
+
+router.get("/:id", getSingleProduct);
 
 export default router;

@@ -118,7 +118,7 @@ const LatestProductsSlider = () => {
                         <img
                           src={product.image_url}
                           alt={product.name}
-                          className="w-full h-80 object-contain rounded-lg w-full"
+                          className="w-full h-80 object-contain rounded-lg"
                         />
                         {/* Always show NEW badge for latest products */}
                         <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
