@@ -69,6 +69,8 @@ export const getSingleProduct = async (req, res) => {
       [id]
     );
 
+    console.log(rows);
+
     if (rows.length === 0) {
       return res.status(404).json({ message: "Product not found" });
     }

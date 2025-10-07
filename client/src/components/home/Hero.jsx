@@ -1,7 +1,11 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Play, Star } from "lucide-react";
+import { useState } from "react";
+import { X } from "lucide-react";
 
 const Hero = () => {
+  const [isVideoOpen, setIsVideoOpen] = useState(false);
+
   return (
     <section className="min-h-screen flex items-center pt-20 pb-16 bg-gray-800">
       <div className="max-w-7xl mx-auto px-6 w-full">
@@ -75,14 +79,98 @@ const Hero = () => {
                 <ArrowRight className="w-5 h-5" />
               </motion.button>
 
+              {/* Watch Demo Button */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => setIsVideoOpen(true)} // open modal
                 className="border border-gray-600 text-white px-8 py-4 rounded-lg font-semibold flex items-center gap-2 hover:bg-gray-700/50 transition-all duration-300"
               >
                 <Play className="w-5 h-5" />
                 Watch Demo
               </motion.button>
+
+              {/* Video Modal */}
+              {isVideoOpen && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                  onClick={() => setIsVideoOpen(false)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", damping: 25 }}
+                    className="relative w-full max-w-4xl bg-gray-900 rounded-2xl overflow-hidden shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Header with Close Button */}
+                    <div className="flex justify-between items-center p-4 bg-gray-800 border-b border-gray-700">
+                      <h3 className="text-white font-semibold text-lg">
+                        Product Demo
+                      </h3>
+                      <button
+                        onClick={() => setIsVideoOpen(false)}
+                        className="text-gray-400 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-full p-2 transition-all duration-200 transform hover:scale-110"
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    {/* Video Container */}
+                    <div className="relative">
+                      <video
+                        src="https://www.pexels.com/download/video/6857212/"
+                        controls
+                        autoPlay
+                        muted
+                        className="w-full h-auto max-h-[70vh] object-contain"
+                        onLoadedData={() => {
+                          // Hide loading when video is ready
+                          const loadingElement =
+                            document.querySelector(".video-loading");
+                          if (loadingElement)
+                            loadingElement.style.display = "none";
+                        }}
+                        onError={() => {
+                          const loadingElement =
+                            document.querySelector(".video-loading");
+                          if (loadingElement) {
+                            loadingElement.innerHTML = `
+                <div class="text-center">
+                  <div class="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <X className="w-6 h-6 text-white" />
+                  </div>
+                  <p class="text-white text-sm">Failed to load video</p>
+                  <p class="text-gray-400 text-xs mt-2">Please check your internet connection</p>
+                </div>
+              `;
+                          }
+                        }}
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+
+                      {/* Loading State - Initially visible, hidden by video events */}
+                      <div className="video-loading absolute inset-0 flex items-center justify-center bg-gray-900">
+                        <div className="text-center">
+                          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                          <p className="text-white text-sm">Loading video...</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Video Controls Info */}
+                    <div className="p-4 bg-gray-800 border-t border-gray-700">
+                      <p className="text-gray-400 text-sm text-center">
+                        Video is muted by default. Use controls to adjust
+                        volume.
+                      </p>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
             </motion.div>
 
             {/* Stats */}

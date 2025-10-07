@@ -4,7 +4,7 @@ import { Search, Star, ShoppingCart, Eye, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 
-const ProductsPage = () => {
+const Products = () => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -170,7 +170,7 @@ const ProductsPage = () => {
                     className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300 group"
                   >
                     {/* Product Image */}
-                    <Link to={`/product/${product.id}`}>
+                    <Link to={`/products/${product.id}`}>
                       <div className="relative overflow-hidden cursor-pointer">
                         <img
                           src={product.image_url}
@@ -243,7 +243,7 @@ const ProductsPage = () => {
                             : "Add to Cart"}
                         </motion.button>
 
-                        <Link to={`/product/${product.id}`} className="flex-1">
+                        <Link to={`/products/${product.id}`} className="flex-1">
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
@@ -318,4 +318,4 @@ const ProductsPage = () => {
   );
 };
 
-export default ProductsPage;
+export default Products;

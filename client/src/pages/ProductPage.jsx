@@ -1,6 +1,7 @@
-import { motion } from "framer-motion";
-import { useState, useEffect, useContext } from "react";
+import axios from "axios";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
   ShoppingCart,
   Star,
@@ -15,41 +16,72 @@ import {
   Package,
   CheckCircle,
 } from "lucide-react";
-import { ShopContext } from "../content/ShopContent";
-import axios from "axios";
 
 const ProductPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  const { addToCart } = useContext(ShopContext);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const { id } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    if (!id) return;
+
     const fetchProduct = async () => {
       try {
         setLoading(true);
         const response = await axios.get(
           `http://localhost:5000/api/products/${id}`
         );
-
-        console.log(response.data);
-        // Simulate a small delay for better UX
-        setTimeout(() => {
-          setProduct(response.data);
-          setLoading(false);
-        }, 500);
+        setProduct(response.data);
       } catch (err) {
         console.error("Failed to fetch product:", err);
+      } finally {
         setLoading(false);
       }
     };
 
     fetchProduct();
   }, [id]);
+
+  // Temporary cart function using localStorage
+  const addToCart = (productId, quantity) => {
+    try {
+      // Get existing cart from localStorage or initialize empty array
+      const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+      // Check if product already exists in cart
+      const existingItemIndex = existingCart.findIndex(
+        (item) => item.id === productId
+      );
+
+      if (existingItemIndex > -1) {
+        // Update quantity if product exists
+        existingCart[existingItemIndex].quantity += quantity;
+      } else {
+        // Add new item to cart
+        existingCart.push({
+          id: productId,
+          quantity: quantity,
+          name: product.name,
+          price: product.price,
+          image_url: product.image_url,
+        });
+      }
+
+      // Save back to localStorage
+      localStorage.setItem("cart", JSON.stringify(existingCart));
+
+      // Show success message (you can replace this with a toast notification)
+      console.log("Product added to cart!");
+
+      // Optional: Dispatch event for other components to listen to
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+    }
+  };
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -76,19 +108,6 @@ const ProductPage = () => {
     }
   };
 
-  // Generate additional images array from the single image_url
-  const getProductImages = (product) => {
-    if (!product) return [];
-
-    // If you have multiple images in your database, you can modify this
-    // For now, we'll use the same image multiple times as placeholder
-    return [
-      product.image_url,
-      product.image_url, // You can replace these with actual different images
-      product.image_url,
-    ];
-  };
-
   // Generate features based on product data
   const getProductFeatures = (product) => {
     if (!product) return [];
@@ -101,7 +120,6 @@ const ProductPage = () => {
       "Excellent customer support",
     ];
 
-    // You can customize features based on product name or other attributes
     if (product.name.toLowerCase().includes("phone")) {
       return [
         "High-resolution display",
@@ -135,7 +153,6 @@ const ProductPage = () => {
       Warranty: "2 Years",
     };
 
-    // Customize specs based on product type
     if (product.name.toLowerCase().includes("phone")) {
       return {
         ...baseSpecs,
@@ -196,12 +213,11 @@ const ProductPage = () => {
   }
 
   const stockStatus = getStockStatus(product.quantity);
-  const productImages = getProductImages(product);
   const productFeatures = getProductFeatures(product);
   const productSpecifications = getProductSpecifications(product);
 
   return (
-    <div className="min-h-screen bg-gray-900 pt-20">
+    <div className="min-h-screen bg-gray-900 ">
       {/* Navigation */}
       <div className="bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -217,45 +233,19 @@ const ProductPage = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
-          <div className="space-y-6">
-            {/* Main Image */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-              className="bg-gray-800 rounded-2xl p-8 border border-gray-700"
-            >
-              <img
-                src={productImages[selectedImage]}
-                alt={product.name}
-                className="w-full h-96 object-contain rounded-lg"
-              />
-            </motion.div>
-
-            {/* Thumbnail Images */}
-            {productImages.length > 1 && (
-              <div className="flex gap-4 overflow-x-auto pb-4">
-                {productImages.map((image, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`flex-shrink-0 w-20 h-20 bg-gray-800 rounded-lg border-2 overflow-hidden transition-all duration-200 ${
-                      selectedImage === index
-                        ? "border-blue-500 ring-2 ring-blue-500/20"
-                        : "border-gray-700 hover:border-gray-600"
-                    }`}
-                  >
-                    <img
-                      src={image}
-                      alt={`${product.name} view ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Product Image - Reduced height container */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6 }}
+            className="bg-gray-800 rounded-2xl p-6 border border-gray-700 flex items-center justify-center h-96"
+          >
+            <img
+              src={product.image_url}
+              alt={product.name}
+              className="w-full h-full object-cover rounded-2xl"
+            />
+          </motion.div>
 
           {/* Product Details */}
           <motion.div
@@ -314,8 +304,10 @@ const ProductPage = () => {
                 Description
               </h3>
               <p className="text-gray-300 leading-relaxed">
-                {product.description ||
-                  `Experience the exceptional quality and performance of the ${product.name}. This premium product combines cutting-edge technology with elegant design to deliver an unparalleled user experience.`}
+                Experience the exceptional quality and performance of the{" "}
+                {product.name}. This premium product combines cutting-edge
+                technology with elegant design to deliver an unparalleled user
+                experience.
               </p>
             </div>
 
@@ -374,7 +366,7 @@ const ProductPage = () => {
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* Add to Cart Button */}
             <div className="flex flex-col sm:flex-row gap-4 pt-6">
               <motion.button
                 onClick={handleAddToCart}
