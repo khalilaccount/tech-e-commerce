@@ -2,11 +2,14 @@ import { useState, useEffect, useContext } from "react";
 import { Menu, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 
 const Navbar = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+
+  const { getCartCount } = useCart();
 
   const navLinks = [
     { name: "Shop", path: "/" },
@@ -118,7 +121,7 @@ const Navbar = () => {
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", stiffness: 500 }}
                 >
-                  0
+                  {getCartCount()}
                 </motion.span>
               </motion.div>
             </Link>

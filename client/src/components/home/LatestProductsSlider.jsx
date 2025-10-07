@@ -198,7 +198,7 @@ const LatestProductsSlider = () => {
                             <ShoppingCart className="w-5 h-5" />
                             Add to Cart
                           </motion.button>
-                          <Link to={`/product/${product.id}`}>
+                          <Link to={`/products/${product.id}`}>
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
