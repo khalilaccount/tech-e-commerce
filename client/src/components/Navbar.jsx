@@ -1,13 +1,20 @@
 import { useState, useEffect, useContext } from "react";
 import { Menu, X } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext"; // You'll need to create this context
 
 const Navbar = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Option 1: Using a custom Auth Context (Recommended)
+  // const { isLoggedIn, logout } = useAuth();
+
+  // Option 2: Using local state with more frequent checks
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const { getCartCount } = useCart();
 
@@ -18,22 +25,66 @@ const Navbar = () => {
     { name: "Services", path: "/services" },
   ];
 
-  // ✅ Check token on mount
+  // Enhanced authentication check
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token);
-  }, []);
+    const checkAuthStatus = () => {
+      const token = localStorage.getItem("token");
+      setIsLoggedIn(!!token);
+    };
+
+    // Check immediately
+    checkAuthStatus();
+
+    // Listen for storage changes (from other tabs)
+    window.addEventListener("storage", checkAuthStatus);
+
+    // Listen for custom auth events (from within same tab)
+    const handleAuthChange = () => checkAuthStatus();
+    window.addEventListener("authChange", handleAuthChange);
+
+    // Check on route changes (in case login happens and user navigates)
+    checkAuthStatus();
+
+    return () => {
+      window.removeEventListener("storage", checkAuthStatus);
+      window.removeEventListener("authChange", handleAuthChange);
+    };
+  }, [location]); // Re-check when route changes
+
+  // More frequent check using interval (fallback)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const token = localStorage.getItem("token");
+      if (!!token !== isLoggedIn) {
+        setIsLoggedIn(!!token);
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
     setIsLoggedIn(false);
+
+    // Dispatch custom event to notify other components
+    window.dispatchEvent(new Event("authChange"));
+
+    // If you're using a cart context, you might want to clear cart too
+    // clearCart();
+
     navigate("/login");
   };
+
+  // Debug: Log auth status to help troubleshooting
+  useEffect(() => {
+    console.log("Navbar auth status:", isLoggedIn);
+  }, [isLoggedIn]);
 
   return (
     <div className="w-full fixed top-0 left-0 z-50 bg-gray-900 shadow-lg border-b border-gray-700">
       <nav className="max-w-7xl mx-auto flex items-center justify-between py-4 px-6">
-        {/* Logo - Tech-focused e-commerce design */}
+        {/* Logo */}
         <Link to="/">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -72,6 +123,7 @@ const Navbar = () => {
 
         {/* Right side */}
         <div className="flex items-center gap-6">
+          {/* Auth Button - Fixed logic */}
           {isLoggedIn ? (
             <motion.button
               onClick={handleLogout}
@@ -82,15 +134,27 @@ const Navbar = () => {
               Sign Out
             </motion.button>
           ) : (
-            <Link to="/register">
-              <motion.button
-                className="hidden md:inline-block px-5 py-2 border border-blue-500 rounded-lg hover:bg-blue-600 text-white cursor-pointer transition-all duration-200 font-medium"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Register
-              </motion.button>
-            </Link>
+            <>
+              {/* Show both Login and Register when not logged in */}
+              <Link to="/login">
+                <motion.button
+                  className="hidden md:inline-block px-4 py-2 border border-gray-500 rounded-lg hover:bg-gray-600 text-white cursor-pointer transition-all duration-200 font-medium mr-2"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Login
+                </motion.button>
+              </Link>
+              <Link to="/register">
+                <motion.button
+                  className="hidden md:inline-block px-5 py-2 bg-blue-500 border border-blue-500 rounded-lg hover:bg-blue-600 text-white cursor-pointer transition-all duration-200 font-medium"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Register
+                </motion.button>
+              </Link>
+            </>
           )}
 
           {/* Cart */}
@@ -171,8 +235,9 @@ const Navbar = () => {
                 </Link>
               </motion.li>
             ))}
-            {/* Mobile Auth Button */}
-            <li className="w-full px-6 mt-4">
+
+            {/* Mobile Auth Buttons */}
+            <li className="w-full px-6 mt-4 space-y-3">
               {isLoggedIn ? (
                 <motion.button
                   onClick={() => {
@@ -186,19 +251,34 @@ const Navbar = () => {
                   Sign Out
                 </motion.button>
               ) : (
-                <Link
-                  to="/register"
-                  className="block w-full"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <motion.button
-                    className="w-full py-3 border border-blue-500 rounded-lg hover:bg-blue-600 text-white cursor-pointer transition-all duration-200 font-medium"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                <>
+                  <Link
+                    to="/login"
+                    className="block w-full mb-2"
+                    onClick={() => setIsOpen(false)}
                   >
-                    Register
-                  </motion.button>
-                </Link>
+                    <motion.button
+                      className="w-full py-3 border border-gray-500 rounded-lg hover:bg-gray-600 text-white cursor-pointer transition-all duration-200 font-medium"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Login
+                    </motion.button>
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="block w-full"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <motion.button
+                      className="w-full py-3 bg-blue-500 border border-blue-500 rounded-lg hover:bg-blue-600 text-white cursor-pointer transition-all duration-200 font-medium"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Register
+                    </motion.button>
+                  </Link>
+                </>
               )}
             </li>
           </ul>

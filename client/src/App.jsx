@@ -11,6 +11,14 @@ import Products from "./pages/Products";
 import ProductPage from "./pages/ProductPage";
 import Register from "./pages/TestRegister";
 import Login from "./pages/Login";
+import CartPage from "./pages/CartPage";
+import OrderPage from "./pages/OrderPage";
+{
+  /* Auth Routes */
+}
+import RequestReset from "./pages/RequestReset";
+import VerifyResetCode from "./pages/VerifyResetCode";
+import ResetPassword from "./pages/ResetPassword";
 
 const App = () => {
   const token = localStorage.getItem("token");
@@ -28,6 +36,11 @@ const App = () => {
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
             <Route path="/products/:id" element={<ProductPage />} />
+            <Route path="/cart" element={<CartPage />} />;
+            <Route path="/order" element={<OrderPage />} />
+            <Route path="/request-reset" element={<RequestReset />} />
+            <Route path="/verify-code" element={<VerifyResetCode />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
         </main>
         <Footer />

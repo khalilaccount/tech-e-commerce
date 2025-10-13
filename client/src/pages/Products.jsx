@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import { Search, Star, ShoppingCart, Eye, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { useRating } from "../context/RatingContext";
 
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { ratings, userRatings, submitRating } = useRating(); // 🔹 get context
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -159,6 +161,8 @@ const Products = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredProducts.map((product, index) => {
                 const stockStatus = getStockStatus(product.quantity);
+                const avgRating = ratings[product.id] || 0; // 🔹 get average rating
+                const userRating = userRatings[product.id] || 0; // 🔹 get user rating
 
                 return (
                   <motion.div
@@ -196,21 +200,33 @@ const Products = () => {
                         {product.name}
                       </h3>
 
-                      {/* Rating - Using default values */}
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="flex items-center gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-4 h-4 ${
-                                i < 4
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-gray-600"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-sm text-gray-400">4.5 (120)</span>
+                      {/* Rating */}
+                      <div className="flex items-center gap-1 mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 cursor-pointer ${
+                              i < (userRating || Math.round(avgRating))
+                                ? "fill-yellow-400 text-yellow-400"
+                                : "text-gray-600"
+                            }`}
+                            onClick={() => submitRating(product.id, i + 1)} // 🔹 submit rating
+                          />
+                        ))}
+                        <span className="text-gray-400 text-sm ml-2">
+                          {(Number(avgRating) || 0).toFixed(1)}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-white text-xl font-bold">
+                          ${product.price}
+                        </span>
+                        <span
+                          className={`${stockStatus.textColor} text-sm font-semibold`}
+                        >
+                          {stockStatus.text}
+                        </span>
                       </div>
 
                       {/* Price */}
