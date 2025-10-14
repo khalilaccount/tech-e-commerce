@@ -79,41 +79,62 @@ const OrderPage = () => {
     }
 
     try {
-      // For now, just log the data and show success message
-      console.log("Order Data:", {
-        customerInfo: formData,
-        cartItems: cartItems,
-        totalAmount: cartItems.reduce(
-          (sum, item) => sum + parseFloat(item.price) * item.quantity,
-          0
-        ),
-      });
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Please log in to place an order");
+        navigate("/login");
+        return;
+      }
 
-      // Show success toast
+      // Prepare order data according to your backend schema
+      const orderData = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        zipCode: formData.zipCode,
+        country: formData.country,
+        items: cartItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image_url: item.image_url,
+        })),
+      };
+
+      // Send order to backend
+      const response = await axios.post(
+        "http://localhost:5000/api/orders",
+        orderData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      // Show success message
       toast.success("Order placed successfully! 🎉");
-
-      // In the future, you'll save to orders table like this:
-      // const token = localStorage.getItem("token");
-      // await axios.post("http://localhost:5000/api/orders", {
-      //   customerInfo: formData,
-      //   items: cartItems,
-      //   total: totalAmount
-      // }, {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
 
       // Clear cart after successful order
       // await axios.delete("http://localhost:5000/api/cart/clear", {
-      //   headers: { Authorization: `Bearer ${token}` }
+      //   headers: { Authorization: `Bearer ${token}` },
       // });
 
       // Redirect to success page or home after delay
       setTimeout(() => {
-        navigate("/products");
+        navigate("/order-success", {
+          state: { order: response.data.order },
+        });
       }, 2000);
     } catch (error) {
       console.error("Failed to place order:", error);
-      toast.error("Failed to place order. Please try again.");
+      if (error.response?.status === 401) {
+        toast.error("Session expired. Please log in again.");
+        navigate("/login");
+      } else {
+        toast.error("Failed to place order. Please try again.");
+      }
     }
   };
 

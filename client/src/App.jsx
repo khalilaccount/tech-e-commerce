@@ -13,6 +13,7 @@ import Register from "./pages/TestRegister";
 import Login from "./pages/Login";
 import CartPage from "./pages/CartPage";
 import OrderPage from "./pages/OrderPage";
+import OrderSuccess from "./pages/OrderSuccess";
 {
   /* Auth Routes */
 }
@@ -41,6 +42,8 @@ const App = () => {
             <Route path="/request-reset" element={<RequestReset />} />
             <Route path="/verify-code" element={<VerifyResetCode />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            // Add this to your routes
+            <Route path="/order-success" element={<OrderSuccess />} />
           </Routes>
         </main>
         <Footer />

@@ -8,11 +8,10 @@ export const useCart = () => useContext(CartContext);
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
 
-  // Add item to cart
-  // ✅ Add to cart
+  // Add item to cart - FIXED: Now returns true/false
   const addToCart = async (product, qty = 1) => {
     const token = localStorage.getItem("token");
-    if (!token) return;
+    if (!token) return false; // Return false if no token
 
     try {
       const { data } = await axios.post(
@@ -39,8 +38,11 @@ export const CartProvider = ({ children }) => {
         }
         return [...prev, data.cartItem];
       });
+
+      return true; // ✅ SUCCESS - return true
     } catch (err) {
       console.error("❌ Failed to add to cart:", err);
+      return false; // ❌ FAILURE - return false
     }
   };
 

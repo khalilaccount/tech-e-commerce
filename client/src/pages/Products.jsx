@@ -1,40 +1,41 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { Search, Star, ShoppingCart, Eye, Package } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
 import axios from "axios";
 import { useRating } from "../context/RatingContext";
+import { useCart } from "../context/CartContext"; // Added useCart import
+import { toast, Toaster } from "react-hot-toast"; // Added toast import
 
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const { ratings, userRatings, submitRating } = useRating(); // 🔹 get context
+  const { ratings, userRatings, submitRating } = useRating();
+  const { addToCart } = useCart(); // Get addToCart function
+  const navigate = useNavigate(); // Initialize navigate
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        setLoading(true); // start loading before API call
+        setLoading(true);
         const response = await axios.get("http://localhost:5000/api/products");
 
-        // Optional: simulate a small delay
         setTimeout(() => {
           setProducts(response.data);
           setFilteredProducts(response.data);
-          setLoading(false); // stop loading
+          setLoading(false);
         }, 1000);
       } catch (err) {
         console.error("Failed to fetch latest products:", err);
-        setLoading(false); // stop loading on error too
+        setLoading(false);
       }
     };
 
-    fetchProducts(); // ✅ call the function
+    fetchProducts();
   }, []);
 
-  // Dummy data matching your database structure
-  // Search functionality
   useEffect(() => {
     if (searchTerm.trim() === "") {
       setFilteredProducts(products);
@@ -68,6 +69,36 @@ const Products = () => {
     }
   };
 
+  // Add this function to handle adding to cart
+  const handleAddToCart = async (product) => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.error("Please login to add items to cart");
+      setTimeout(() => {
+        navigate("/login");
+      }, 1500);
+      return;
+    }
+
+    if (product.quantity === 0) {
+      toast.error("This product is out of stock");
+      return;
+    }
+
+    try {
+      const success = await addToCart(product);
+      if (success) {
+        toast.success(`${product.name} added to cart!`); // This will now work
+      } else {
+        toast.error("Failed to add item to cart"); // This will show on actual errors
+      }
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      toast.error("Failed to add item to cart");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900">
@@ -85,6 +116,7 @@ const Products = () => {
 
   return (
     <div className="min-h-screen bg-gray-900">
+      <Toaster position="top-center" /> {/* Added Toaster component */}
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-gray-800 to-gray-900 py-16 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
@@ -107,7 +139,6 @@ const Products = () => {
           </motion.div>
         </div>
       </section>
-
       {/* Search Section */}
       <section className="py-8 bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
@@ -131,7 +162,6 @@ const Products = () => {
           </div>
         </div>
       </section>
-
       {/* Products Grid */}
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-6">
@@ -161,8 +191,8 @@ const Products = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredProducts.map((product, index) => {
                 const stockStatus = getStockStatus(product.quantity);
-                const avgRating = ratings[product.id] || 0; // 🔹 get average rating
-                const userRating = userRatings[product.id] || 0; // 🔹 get user rating
+                const avgRating = ratings[product.id] || 0;
+                const userRating = userRatings[product.id] || 0;
 
                 return (
                   <motion.div
@@ -190,7 +220,6 @@ const Products = () => {
                             {stockStatus.text}
                           </span>
                         </div>
-                        {/* ... other image overlays ... */}
                       </div>
                     </Link>
 
@@ -210,7 +239,7 @@ const Products = () => {
                                 ? "fill-yellow-400 text-yellow-400"
                                 : "text-gray-600"
                             }`}
-                            onClick={() => submitRating(product.id, i + 1)} // 🔹 submit rating
+                            onClick={() => submitRating(product.id, i + 1)}
                           />
                         ))}
                         <span className="text-gray-400 text-sm ml-2">
@@ -218,19 +247,8 @@ const Products = () => {
                         </span>
                       </div>
 
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-white text-xl font-bold">
-                          ${product.price}
-                        </span>
-                        <span
-                          className={`${stockStatus.textColor} text-sm font-semibold`}
-                        >
-                          {stockStatus.text}
-                        </span>
-                      </div>
-
-                      {/* Price */}
-                      <div className="flex items-center justify-between mb-4">
+                      {/* Price and Stock - Fixed duplicate price display */}
+                      <div className="flex justify-between items-center mb-4">
                         <span className="text-2xl font-bold text-white">
                           ${product.price}
                         </span>
@@ -247,6 +265,7 @@ const Products = () => {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           disabled={product.quantity === 0}
+                          onClick={() => handleAddToCart(product)} // Added onClick handler
                           className={`flex-1 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300 ${
                             product.quantity === 0
                               ? "bg-gray-600 text-gray-400 cursor-not-allowed"
@@ -294,7 +313,6 @@ const Products = () => {
           )}
         </div>
       </section>
-
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-gray-800 to-gray-900 border-t border-gray-700">
         <div className="max-w-4xl mx-auto px-6 text-center">
