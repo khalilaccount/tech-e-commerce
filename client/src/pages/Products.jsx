@@ -1,11 +1,19 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
-import { Search, Star, ShoppingCart, Eye, Package } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate
+import {
+  Search,
+  Star,
+  ShoppingCart,
+  Eye,
+  Package,
+  Filter,
+  X,
+} from "lucide-react"; // Added Filter and X icons
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useRating } from "../context/RatingContext";
-import { useCart } from "../context/CartContext"; // Added useCart import
-import { toast, Toaster } from "react-hot-toast"; // Added toast import
+import { useCart } from "../context/CartContext";
+import { toast, Toaster } from "react-hot-toast";
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -13,22 +21,73 @@ const Products = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { ratings, userRatings, submitRating } = useRating();
-  const { addToCart } = useCart(); // Get addToCart function
-  const navigate = useNavigate(); // Initialize navigate
+  const { addToCart } = useCart();
+  const navigate = useNavigate();
+
+  // Filter states
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [priceRange, setPriceRange] = useState({
+    min: 0,
+    max: 10000,
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         setLoading(true);
-        const response = await axios.get("http://localhost:5000/api/products");
+        console.log("Starting to fetch products...");
 
-        setTimeout(() => {
-          setProducts(response.data);
-          setFilteredProducts(response.data);
+        const response = await axios.get("http://localhost:5000/api/products");
+        console.log("API Response:", response);
+        console.log("Response data:", response.data);
+        console.log("Response status:", response.status);
+
+        if (!response.data) {
+          console.error("No data received from API");
           setLoading(false);
-        }, 1000);
+          return;
+        }
+
+        const productsData = response.data;
+        console.log("Products data:", productsData);
+
+        // Check if productsData is an array
+        if (!Array.isArray(productsData)) {
+          console.error("Products data is not an array:", typeof productsData);
+          setLoading(false);
+          return;
+        }
+
+        setProducts(productsData);
+        setFilteredProducts(productsData);
+
+        // Extract unique categories from products
+        const uniqueCategories = [
+          ...new Set(productsData.map((product) => product.category)),
+        ].filter(Boolean);
+        console.log("Unique categories:", uniqueCategories);
+        setCategories(uniqueCategories);
+
+        // Calculate price range from actual products
+        if (productsData.length > 0) {
+          const prices = productsData.map((p) => p.price);
+          const minPrice = Math.floor(Math.min(...prices));
+          const maxPrice = Math.ceil(Math.max(...prices));
+          console.log("Price range:", minPrice, maxPrice);
+          setPriceRange({
+            min: minPrice,
+            max: maxPrice,
+          });
+        } else {
+          console.log("No products found in response");
+        }
+
+        setLoading(false);
       } catch (err) {
         console.error("Failed to fetch latest products:", err);
+        console.error("Error details:", err.response?.data || err.message);
         setLoading(false);
       }
     };
@@ -36,16 +95,32 @@ const Products = () => {
     fetchProducts();
   }, []);
 
+  // Apply filters whenever search term, category, or price range changes
   useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter((product) =>
+    let filtered = products;
+
+    // Apply search filter
+    if (searchTerm.trim() !== "") {
+      filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredProducts(filtered);
     }
-  }, [searchTerm, products]);
+
+    // Apply category filter
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter(
+        (product) => product.category === selectedCategory
+      );
+    }
+
+    // Apply price range filter
+    filtered = filtered.filter(
+      (product) =>
+        product.price >= priceRange.min && product.price <= priceRange.max
+    );
+
+    setFilteredProducts(filtered);
+  }, [searchTerm, products, selectedCategory, priceRange]);
 
   const getStockStatus = (quantity) => {
     if (quantity === 0) {
@@ -69,7 +144,6 @@ const Products = () => {
     }
   };
 
-  // Add this function to handle adding to cart
   const handleAddToCart = async (product) => {
     const token = localStorage.getItem("token");
 
@@ -89,14 +163,30 @@ const Products = () => {
     try {
       const success = await addToCart(product);
       if (success) {
-        toast.success(`${product.name} added to cart!`); // This will now work
+        toast.success(`${product.name} added to cart!`);
       } else {
-        toast.error("Failed to add item to cart"); // This will show on actual errors
+        toast.error("Failed to add item to cart");
       }
     } catch (error) {
       console.error("Failed to add to cart:", error);
       toast.error("Failed to add item to cart");
     }
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory("all");
+    setPriceRange({
+      min: 0,
+      max: 10000,
+    });
+    setSearchTerm("");
+  };
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    if (selectedCategory !== "all") count++;
+    if (priceRange.min > 0 || priceRange.max < 10000) count++;
+    return count;
   };
 
   if (loading) {
@@ -116,7 +206,8 @@ const Products = () => {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <Toaster position="top-center" /> {/* Added Toaster component */}
+      <Toaster position="top-center" />
+
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-gray-800 to-gray-900 py-16 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
@@ -139,29 +230,186 @@ const Products = () => {
           </motion.div>
         </div>
       </section>
-      {/* Search Section */}
+
+      {/* Search and Filter Section */}
       <section className="py-8 bg-gray-800 border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
-            {/* Search Bar */}
-            <div className="relative w-full md:w-96">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search products by name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              />
+          <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+            {/* Left: Search and Filter Toggle */}
+            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search products by name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                />
+              </div>
+
+              {/* Filter Toggle Button - Mobile & Desktop */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white hover:bg-gray-600 transition-all duration-200"
+              >
+                <Filter className="w-5 h-5" />
+                Filters
+                {getActiveFiltersCount() > 0 && (
+                  <span className="bg-blue-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                    {getActiveFiltersCount()}
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* Results Count */}
-            <div className="text-gray-300">
-              Showing {filteredProducts.length} of {products.length} products
+            {/* Right: Results Count and Clear Filters */}
+            <div className="flex items-center gap-4 w-full lg:w-auto justify-between lg:justify-end">
+              <div className="text-gray-300">
+                Showing {filteredProducts.length} of {products.length} products
+              </div>
+
+              {getActiveFiltersCount() > 0 && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors duration-200"
+                >
+                  <X className="w-4 h-4" />
+                  Clear Filters
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Filter Panel */}
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-6 p-6 bg-gray-700 rounded-lg border border-gray-600"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-white font-semibold mb-3">
+                    Category
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setSelectedCategory("all")}
+                      className={`px-4 py-2 rounded-lg border transition-all duration-200 ${
+                        selectedCategory === "all"
+                          ? "bg-blue-500 border-blue-500 text-white"
+                          : "bg-gray-600 border-gray-500 text-gray-300 hover:bg-gray-500"
+                      }`}
+                    >
+                      All Categories
+                    </button>
+                    {categories.map((category) => (
+                      <button
+                        key={category}
+                        onClick={() => setSelectedCategory(category)}
+                        className={`px-4 py-2 rounded-lg border transition-all duration-200 ${
+                          selectedCategory === category
+                            ? "bg-blue-500 border-blue-500 text-white"
+                            : "bg-gray-600 border-gray-500 text-gray-300 hover:bg-gray-500"
+                        }`}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price Range Filter */}
+                <div>
+                  <label className="block text-white font-semibold mb-3">
+                    Price Range: ${priceRange.min} - ${priceRange.max}
+                  </label>
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <label className="block text-gray-400 text-sm mb-1">
+                          Min Price
+                        </label>
+                        <input
+                          type="number"
+                          value={priceRange.min}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              min: Math.max(0, parseInt(e.target.value) || 0),
+                            }))
+                          }
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-gray-400 text-sm mb-1">
+                          Max Price
+                        </label>
+                        <input
+                          type="number"
+                          value={priceRange.max}
+                          onChange={(e) =>
+                            setPriceRange((prev) => ({
+                              ...prev,
+                              max: Math.max(
+                                priceRange.min,
+                                parseInt(e.target.value) || 10000
+                              ),
+                            }))
+                          }
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Price Range Slider */}
+                    <div className="pt-2">
+                      <input
+                        type="range"
+                        min="0"
+                        max="10000"
+                        step="100"
+                        value={priceRange.max}
+                        onChange={(e) =>
+                          setPriceRange((prev) => ({
+                            ...prev,
+                            max: parseInt(e.target.value),
+                          }))
+                        }
+                        className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer slider"
+                      />
+                      <style jsx>{`
+                        .slider::-webkit-slider-thumb {
+                          appearance: none;
+                          height: 20px;
+                          width: 20px;
+                          border-radius: 50%;
+                          background: #3b82f6;
+                          cursor: pointer;
+                        }
+                        .slider::-moz-range-thumb {
+                          height: 20px;
+                          width: 20px;
+                          border-radius: 50%;
+                          background: #3b82f6;
+                          cursor: pointer;
+                          border: none;
+                        }
+                      `}</style>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
       </section>
+
       {/* Products Grid */}
       <section className="py-12">
         <div className="max-w-7xl mx-auto px-6">
@@ -178,13 +426,13 @@ const Products = () => {
                 No products found
               </h3>
               <p className="text-gray-400 mb-6">
-                Try adjusting your search terms
+                Try adjusting your search terms or filters
               </p>
               <button
-                onClick={() => setSearchTerm("")}
+                onClick={clearFilters}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg hover:shadow-blue-500/25 transition-all duration-300"
               >
-                Clear Search
+                Clear All Filters
               </button>
             </motion.div>
           ) : (
@@ -220,6 +468,13 @@ const Products = () => {
                             {stockStatus.text}
                           </span>
                         </div>
+
+                        {/* Category Badge */}
+                        <div className="absolute top-4 right-4">
+                          <span className="bg-purple-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                            {product.category}
+                          </span>
+                        </div>
                       </div>
                     </Link>
 
@@ -247,7 +502,7 @@ const Products = () => {
                         </span>
                       </div>
 
-                      {/* Price and Stock - Fixed duplicate price display */}
+                      {/* Price and Stock */}
                       <div className="flex justify-between items-center mb-4">
                         <span className="text-2xl font-bold text-white">
                           ${product.price}
@@ -265,7 +520,7 @@ const Products = () => {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           disabled={product.quantity === 0}
-                          onClick={() => handleAddToCart(product)} // Added onClick handler
+                          onClick={() => handleAddToCart(product)}
                           className={`flex-1 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 transition-all duration-300 ${
                             product.quantity === 0
                               ? "bg-gray-600 text-gray-400 cursor-not-allowed"
@@ -313,6 +568,7 @@ const Products = () => {
           )}
         </div>
       </section>
+
       {/* CTA Section */}
       <section className="py-16 bg-gradient-to-r from-gray-800 to-gray-900 border-t border-gray-700">
         <div className="max-w-4xl mx-auto px-6 text-center">

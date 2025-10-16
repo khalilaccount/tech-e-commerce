@@ -1,0 +1,17 @@
+{
+  "cart_items": [],
+  "carts": [],
+  "order_items": [],
+  "orders": [],
+  "products": [],
+  "users": [
+    {
+      "id": 1,
+      "username": "khalil",
+      "email": "khalilou@gmail.com",
+      "password": "$2b$10$VWQiivvF5y2k6XdzKPYFJO4bXO5OhB5sXaGNZ6In/lmVUI3XBOIsG",
+      "role": "customer",
+      "created_at": "2025-09-29T16:16:44.083Z"
+    }
+  ]
+}

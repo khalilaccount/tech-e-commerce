@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import passport from "passport";
 
-import { connectDB } from "./config/db.js";
+import { pool, connectDB } from "./config/db.js";
 import "./config/passport.js"; // ✅ this loads the JWT strategy
 
 import adminRoutes from "./routes/adminRoutes.js";
