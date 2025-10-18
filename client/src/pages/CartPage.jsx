@@ -1,73 +1,78 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Trash2, ShoppingBag, ArrowLeft } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
 const CartPage = () => {
-  const [cartItems, setCartItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(null);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
-  const { refreshCart } = useCart();
+  const {
+    cartItems,
+    loading,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    getCartTotal,
+    refreshCart,
+  } = useCart();
 
   useEffect(() => {
-    const fetchCart = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const response = await axios.get("http://localhost:5000/api/cart", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setCartItems(response.data.cartItems || response.data);
-      } catch (err) {
-        console.error("Failed to load cart:", err);
-      } finally {
-        setLoading(false);
+    // The cart context automatically fetches cart items on mount
+    // We just need to ensure we have a token
+    if (!token) {
+      navigate("/login");
+    }
+  }, [token, navigate]);
+
+  const handleRemoveFromCart = async (itemId) => {
+    const success = await removeFromCart(itemId);
+    if (!success) {
+      alert("Failed to remove item from cart");
+    }
+  };
+
+  const handleClearCart = async () => {
+    if (!window.confirm("Are you sure you want to clear your entire cart?")) {
+      return;
+    }
+
+    const success = await clearCart();
+    if (!success) {
+      alert("Failed to clear cart");
+    }
+  };
+
+  const handleUpdateQuantity = async (itemId, newQuantity) => {
+    if (newQuantity < 1) {
+      handleRemoveFromCart(itemId);
+      return;
+    }
+
+    setUpdating(itemId);
+    console.log(
+      `🔄 Updating quantity: itemId=${itemId}, newQuantity=${newQuantity}`
+    );
+
+    try {
+      const success = await updateQuantity(itemId, newQuantity);
+
+      if (!success) {
+        console.error("❌ updateQuantity returned false");
+        alert("Failed to update quantity");
+      } else {
+        console.log("✅ Quantity updated successfully");
       }
-    };
-
-    if (token) {
-      fetchCart();
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
-  const removeFromCart = async (productId) => {
-    try {
-      await axios.delete(`http://localhost:5000/api/cart/${productId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setCartItems(cartItems.filter((item) => item.product_id !== productId));
-      refreshCart();
-    } catch (err) {
-      console.error("Failed to remove item:", err);
+    } catch (error) {
+      console.error("❌ Error in handleUpdateQuantity:", error);
+      alert("Failed to update quantity");
+    } finally {
+      setUpdating(null);
     }
   };
 
-  const updateQuantity = async (productId, newQuantity) => {
-    if (newQuantity < 1) return;
-
-    try {
-      await axios.put(
-        `http://localhost:5000/api/cart/${productId}`,
-        { quantity: newQuantity },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setCartItems(
-        cartItems.map((item) =>
-          item.product_id === productId
-            ? { ...item, quantity: newQuantity }
-            : item
-        )
-      );
-      refreshCart();
-    } catch (err) {
-      console.error("Failed to update quantity:", err);
-    }
-  };
-
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -79,11 +84,13 @@ const CartPage = () => {
     );
   }
 
+  // Authentication check
   if (!token) {
     navigate("/login");
     return null;
   }
 
+  // Empty cart state
   if (cartItems.length === 0) {
     return (
       <div className="min-h-screen bg-gray-900">
@@ -124,10 +131,7 @@ const CartPage = () => {
     );
   }
 
-  const totalAmount = cartItems.reduce(
-    (sum, item) => sum + parseFloat(item.price) * item.quantity,
-    0
-  );
+  const totalAmount = getCartTotal();
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -162,7 +166,7 @@ const CartPage = () => {
               <div className="space-y-6">
                 {cartItems.map((item, index) => (
                   <motion.div
-                    key={item.product_id || index}
+                    key={item.item_id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.1 }}
@@ -172,7 +176,7 @@ const CartPage = () => {
                       <div className="flex flex-col sm:flex-row gap-6">
                         {/* Product Image */}
                         <Link
-                          to={`/products/${item.product_id}`}
+                          to={`/products/${item.item_id}`}
                           className="flex-shrink-0"
                         >
                           <img
@@ -184,7 +188,7 @@ const CartPage = () => {
 
                         {/* Product Info */}
                         <div className="flex-1">
-                          <Link to={`/products/${item.product_id}`}>
+                          <Link to={`/products/${item.item_id}`}>
                             <h3 className="text-xl font-semibold text-white mb-2 hover:text-blue-400 transition-colors cursor-pointer">
                               {item.name}
                             </h3>
@@ -203,28 +207,38 @@ const CartPage = () => {
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() =>
-                                  updateQuantity(
-                                    item.product_id,
+                                  handleUpdateQuantity(
+                                    item.item_id,
                                     item.quantity - 1
                                   )
                                 }
-                                className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors"
+                                disabled={updating === item.item_id}
+                                className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                -
+                                {updating === item.item_id ? (
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  "-"
+                                )}
                               </button>
                               <span className="w-8 text-center text-white font-semibold">
                                 {item.quantity}
                               </span>
                               <button
                                 onClick={() =>
-                                  updateQuantity(
-                                    item.product_id,
+                                  handleUpdateQuantity(
+                                    item.item_id,
                                     item.quantity + 1
                                   )
                                 }
-                                className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors"
+                                disabled={updating === item.item_id}
+                                className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors text-white disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                +
+                                {updating === item.item_id ? (
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  "+"
+                                )}
                               </button>
                             </div>
                           </div>
@@ -240,7 +254,7 @@ const CartPage = () => {
                               )}
                             </div>
                             <button
-                              onClick={() => removeFromCart(item.product_id)}
+                              onClick={() => handleRemoveFromCart(item.item_id)}
                               className="flex items-center gap-2 text-red-400 hover:text-red-300 transition-colors"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -307,6 +321,17 @@ const CartPage = () => {
                     Continue Shopping
                   </motion.button>
                 </Link>
+
+                {/* Clear All Button */}
+                <motion.button
+                  onClick={handleClearCart}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full border border-red-600 text-red-400 py-3 rounded-xl font-semibold mt-4 hover:bg-red-900/20 transition-all duration-300 flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear Entire Cart
+                </motion.button>
               </motion.div>
             </div>
           </div>
